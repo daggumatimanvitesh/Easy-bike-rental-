@@ -1,0 +1,9 @@
+package com.easybikerentals.controller;
+import com.easybikerentals.entity.Payment; import com.easybikerentals.repository.*; import jakarta.validation.Valid; import jakarta.validation.constraints.*; import org.springframework.http.*; import org.springframework.security.core.context.SecurityContextHolder; import org.springframework.web.bind.annotation.*; import org.springframework.web.server.ResponseStatusException; import java.util.*;
+@RestController @RequestMapping("/api/payments") public class PaymentController {
+ private final PaymentRepository payments; private final BookingRepository bookings;
+ public PaymentController(PaymentRepository p,BookingRepository b){payments=p;bookings=b;}
+ record TestPayment(@NotNull Long bookingId,@NotBlank String method){}
+ @PostMapping @ResponseStatus(HttpStatus.CREATED) public Payment simulate(@Valid @RequestBody TestPayment request){if(!List.of("CASH","UPI","CARD").contains(request.method().toUpperCase()))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Payment method must be CASH, UPI or CARD");var booking=bookings.findById(request.bookingId()).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Booking not found"));String email=SecurityContextHolder.getContext().getAuthentication().getName();if(!booking.customer.email.equals(email))throw new ResponseStatusException(HttpStatus.FORBIDDEN);var p=new Payment();p.booking=booking;p.amount=booking.totalAmount;p.method=request.method().toUpperCase();p.status="TEST_PAID";p.transactionReference="TEST-"+UUID.randomUUID().toString().substring(0,12).toUpperCase();return payments.save(p);}
+ @GetMapping public List<Payment> all(){var auth=SecurityContextHolder.getContext().getAuthentication();if(auth.getAuthorities().stream().noneMatch(a->a.getAuthority().equals("ROLE_ADMIN")))throw new ResponseStatusException(HttpStatus.FORBIDDEN);return payments.findAllByOrderByPaidAtDesc();}
+}
