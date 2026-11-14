@@ -1,8 +1,16 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { login as loginApi } from '../services/api';
 const Context = createContext(null);
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('ebr_user') || 'null'));
+  const [user, setUser] = useState(() => {
+    if (!localStorage.getItem('ebr_token')) { localStorage.removeItem('ebr_user'); return null; }
+    try { return JSON.parse(localStorage.getItem('ebr_user') || 'null'); } catch { localStorage.removeItem('ebr_user'); return null; }
+  });
+  useEffect(() => {
+    const expireSession = () => setUser(null);
+    window.addEventListener('ebr:session-expired', expireSession);
+    return () => window.removeEventListener('ebr:session-expired', expireSession);
+  }, []);
   async function login(email, password) { const { data } = await loginApi({ email, password }); localStorage.setItem('ebr_token', data.token); localStorage.setItem('ebr_user', JSON.stringify(data.user)); setUser(data.user); return data.user; }
   function logout() { localStorage.removeItem('ebr_token'); localStorage.removeItem('ebr_user'); setUser(null); }
   return <Context.Provider value={{ user, login, logout }}>{children}</Context.Provider>;
