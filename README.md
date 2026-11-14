@@ -55,24 +55,21 @@ Hibernate's `ddl-auto=update` creates the core JPA entity tables. The SQL script
 
 ## Open and run in IntelliJ IDEA
 
-1. Open the `Easy-Bike-Rentals` folder (or open `backend/pom.xml` and import it as a Maven project).
-2. Set Project SDK to JDK 17+ and allow Maven to load dependencies.
-3. Start MySQL and run the schema and seed scripts above.
-4. In IntelliJ's terminal, run the backend:
+1. In IntelliJ IDEA, choose **File → Open** and select the `Easy-Bike-Rentals` project folder. The root `pom.xml` imports the backend Maven module. Set Project SDK to JDK 17+ and allow Maven to load dependencies. IntelliJ IDEA Ultimate also provides the JavaScript and npm integrations; Community Edition can run the same commands in its built-in terminal.
+2. Start MySQL and run the schema and seed scripts above.
+3. In IntelliJ's terminal, run the backend from the project root:
 
 ```powershell
-cd backend
-mvn spring-boot:run
+mvn -pl backend spring-boot:run
 ```
 
 The API listens on `http://localhost:8080`. Environment variables can instead be configured in the IntelliJ Run Configuration.
 
-5. In a second IntelliJ terminal, install and start the frontend:
+4. In a second IntelliJ terminal, install and start the frontend:
 
 ```powershell
-cd frontend
-npm install
-npm run dev
+npm --prefix frontend install
+npm --prefix frontend run dev
 ```
 
 Open `http://localhost:5173`. Set `VITE_API_URL` in `frontend/.env.local` if the API URL differs. An example is in `frontend/.env.example`.
