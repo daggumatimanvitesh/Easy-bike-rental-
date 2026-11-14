@@ -1,16 +1,16 @@
 # Easy Bike Rentals
 
-A full-stack academic bike rental demonstration built with React, Vite, Spring Boot, Spring Security, JWT, Spring Data JPA and MySQL. The app includes a responsive marketing site, bike fleet and detail pages, customer registration/login, booking requests with overlap protection, a customer booking dashboard, an admin booking/fleet view, test-payment API, and persisted contact messages.
+A full-stack academic bike rental demonstration built with React, Vite, Spring Boot, Spring Security, JWT, Spring Data JPA and MySQL. The app includes a responsive marketing site, bike fleet and detail pages, customer registration/login, booking requests with overlap protection, a customer booking dashboard, an admin booking/fleet view, Razorpay Standard Checkout, and persisted contact messages.
 
-> **Payments are simulated.** The API marks a test transaction `TEST_PAID`; no real card or UPI transaction is processed.
+> **Payments use Razorpay Standard Checkout.** Use test-mode keys while integrating. Switch to live-mode keys only after your Razorpay account is activated and the site is deployed over HTTPS.
 
 ## Features
 
 - Browse bikes from the REST API, search by name/brand, and filter by category.
 - Register customers with BCrypt password hashes; log in for a signed JWT.
-- Request future bookings; the API checks time overlap and serializes booking attempts per bike. A successful demo payment confirms the booking.
+- Request future bookings; the API checks time overlap and serializes booking attempts per bike. A signature-verified, captured Razorpay payment confirms the booking.
 - View customer bookings, cancel eligible bookings, and update booking status as an administrator.
-- Record academic test payment entries for Cash, UPI, and Card labels.
+- Pay bookings through Razorpay Standard Checkout; the backend verifies the checkout signature and captured payment before confirming a booking.
 - Store contact form submissions in MySQL.
 
 ## Technology and architecture
@@ -99,7 +99,9 @@ Log in again to get a JWT carrying the new role. The project intentionally seeds
 | POST | `/api/bookings` | Customer | Request booking; validates dates and conflicts |
 | DELETE | `/api/bookings/{id}` | Booking owner | Cancel pending/confirmed booking |
 | PATCH | `/api/bookings/{id}/status?value=CONFIRMED` | Admin | Change booking lifecycle status |
-| POST | `/api/payments` | Booking owner | Record an idempotent demo payment and confirm an eligible booking (`CASH`, `UPI`, `CARD`) |
+| POST | `/api/payments/orders` | Booking owner | Create or resume a Razorpay order |
+| POST | `/api/payments/verify` | Booking owner | Verify the checkout signature and captured payment |
+| POST | `/api/payments/webhook` | Razorpay | Verify and process `payment.captured` events |
 | GET | `/api/payments` | Admin | List payments |
 | POST | `/api/contact` | Public | Save contact message |
 
@@ -107,7 +109,17 @@ Send authenticated requests with `Authorization: Bearer <token>`.
 
 ## Booking and pricing behavior
 
-The API requires a future pickup time and a return time after pickup. It takes a row lock on the selected bike inside a transaction, checks pending/confirmed/picked-up booking windows for overlap, and rejects a conflict with HTTP 409. Price is rounded up to whole rental days using the daily rate; the security deposit is added to the estimate. New bookings start as `PENDING`; completing the labeled demo payment records a `TEST_PAID` transaction and moves an eligible booking to `CONFIRMED`. Payment requests are idempotent per booking. Availability is period-based and bikes are not globally disabled by a single booking.
+The API requires a future pickup time and a return time after pickup. It takes a row lock on the selected bike inside a transaction, checks pending/confirmed/picked-up booking windows for overlap, and rejects a conflict with HTTP 409. Price is rounded up to whole rental days using the daily rate; the security deposit is added to the estimate. New bookings start as `PENDING`; only a signature-verified, captured Razorpay payment moves an eligible booking to `CONFIRMED`. Booking owners cannot cancel captured payments in the app; refunds must first be processed in Razorpay. Availability is period-based and bikes are not globally disabled by a single booking.
+
+## Razorpay setup
+
+1. Activate your Razorpay account and create API keys in the Dashboard. Start with **Test Mode** keys.
+2. Set `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, and `RAZORPAY_WEBHOOK_SECRET` in the IntelliJ backend Run Configuration or backend server environment. Keep both secret values on the backend only; do not add them to frontend variables or Git.
+3. Enable automatic payment capture in Razorpay. The backend confirms bookings only after it verifies a captured payment with Razorpay.
+4. For webhook recovery, configure the public HTTPS endpoint `https://<your-domain>/api/payments/webhook` in Razorpay and subscribe to `payment.captured`. Use the separate webhook secret generated for that webhook. Razorpay cannot deliver webhooks to `localhost`.
+5. Test with Test Mode keys first. For live payments, deploy the frontend and backend to a public HTTPS domain and use Live Mode keys only after Razorpay activates your account and site. Restart the backend whenever credentials change.
+
+Without API keys, the rest of the site remains available and payment attempts return a clear configuration error.
 
 ## Local verification and known limits
 
