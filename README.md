@@ -72,7 +72,7 @@ npm --prefix frontend install
 npm --prefix frontend run dev
 ```
 
-Open `http://localhost:5173`. Set `VITE_API_URL` in `frontend/.env.local` if the API URL differs. An example is in `frontend/.env.example`.
+Open `http://127.0.0.1:5174`. The Vite server proxies `/api` to the backend, so frontend requests stay same-origin and do not depend on browser CORS rules. The default proxy target is `http://127.0.0.1:8080`; if the backend uses another port, set `VITE_API_TARGET` in `frontend/.env.local` (for example, `http://127.0.0.1:8081`). Keep `VITE_API_URL=/api`.
 
 ## Accounts
 
@@ -109,9 +109,9 @@ Send authenticated requests with `Authorization: Bearer <token>`.
 
 The API requires a future pickup time and a return time after pickup. It takes a row lock on the selected bike inside a transaction, checks pending/confirmed/picked-up booking windows for overlap, and rejects a conflict with HTTP 409. Price is rounded up to whole rental days using the daily rate; the security deposit is added to the estimate. Availability is period-based and bikes are not globally disabled by a single booking.
 
-## Testing status and known limits
+## Local verification and known limits
 
-This generation environment has Node.js but no npm executable, Maven, a usable JDK compiler, or verified MySQL server. Therefore a production frontend build, Maven compile/tests, database migration, and live API walkthrough could not be run here. Install the prerequisites above and run `npm run build` and `mvn test` locally before presenting. Automated tests have not been added yet.
+The frontend production build completes successfully. The local frontend and backend have also been verified together: bike listings and bike detail records load from the seeded MySQL data. Automated tests have not been added or run.
 
 The included implementation is an academic starter with functional core flows, not every requested enterprise module. The frontend does not yet include a complete bike CRUD editor, customer-management screens, reports/analytics, password reset/profile editor, booking receipt printing, reviews UI, full booking history filters, or payment checkout/receipt screen. Those remain enhancements. Bike image URLs are remote Unsplash sample imagery.
 
