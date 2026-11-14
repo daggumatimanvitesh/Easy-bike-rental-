@@ -8,7 +8,7 @@ A full-stack academic bike rental demonstration built with React, Vite, Spring B
 
 - Browse bikes from the REST API, search by name/brand, and filter by category.
 - Register customers with BCrypt password hashes; log in for a signed JWT.
-- Request future bookings; the API checks time overlap and serializes booking attempts per bike.
+- Request future bookings; the API checks time overlap and serializes booking attempts per bike. A successful demo payment confirms the booking.
 - View customer bookings, cancel eligible bookings, and update booking status as an administrator.
 - Record academic test payment entries for Cash, UPI, and Card labels.
 - Store contact form submissions in MySQL.
@@ -99,7 +99,7 @@ Log in again to get a JWT carrying the new role. The project intentionally seeds
 | POST | `/api/bookings` | Customer | Request booking; validates dates and conflicts |
 | DELETE | `/api/bookings/{id}` | Booking owner | Cancel pending/confirmed booking |
 | PATCH | `/api/bookings/{id}/status?value=CONFIRMED` | Admin | Change booking lifecycle status |
-| POST | `/api/payments` | Booking owner | Create clearly labeled test payment (`CASH`, `UPI`, `CARD`) |
+| POST | `/api/payments` | Booking owner | Record an idempotent demo payment and confirm an eligible booking (`CASH`, `UPI`, `CARD`) |
 | GET | `/api/payments` | Admin | List payments |
 | POST | `/api/contact` | Public | Save contact message |
 
@@ -107,13 +107,13 @@ Send authenticated requests with `Authorization: Bearer <token>`.
 
 ## Booking and pricing behavior
 
-The API requires a future pickup time and a return time after pickup. It takes a row lock on the selected bike inside a transaction, checks pending/confirmed/picked-up booking windows for overlap, and rejects a conflict with HTTP 409. Price is rounded up to whole rental days using the daily rate; the security deposit is added to the estimate. Availability is period-based and bikes are not globally disabled by a single booking.
+The API requires a future pickup time and a return time after pickup. It takes a row lock on the selected bike inside a transaction, checks pending/confirmed/picked-up booking windows for overlap, and rejects a conflict with HTTP 409. Price is rounded up to whole rental days using the daily rate; the security deposit is added to the estimate. New bookings start as `PENDING`; completing the labeled demo payment records a `TEST_PAID` transaction and moves an eligible booking to `CONFIRMED`. Payment requests are idempotent per booking. Availability is period-based and bikes are not globally disabled by a single booking.
 
 ## Local verification and known limits
 
 The frontend production build completes successfully. The local frontend and backend have also been verified together: bike listings and bike detail records load from the seeded MySQL data. Automated tests have not been added or run.
 
-The included implementation is an academic starter with functional core flows, not every requested enterprise module. The frontend does not yet include a complete bike CRUD editor, customer-management screens, reports/analytics, password reset/profile editor, booking receipt printing, reviews UI, full booking history filters, or payment checkout/receipt screen. Those remain enhancements. Bike image URLs are remote Unsplash sample imagery.
+The included implementation is an academic starter with functional core flows, not every requested enterprise module. The frontend does not yet include a complete bike CRUD editor, customer-management screens, reports/analytics, password reset/profile editor, booking receipt printing, reviews UI, or full booking history filters. Those remain enhancements. Bike image URLs are remote Unsplash sample imagery.
 
 ## Screenshots
 

@@ -7,4 +7,5 @@ export const login = data => api.post('/auth/login', data);
 export const register = data => api.post('/auth/register', data);
 export const getBookings = () => api.get('/bookings');
 export const createBooking = data => api.post('/bookings', data);
+export const payBooking = (bookingId, method) => api.post('/payments', { bookingId, method });
 export default api;

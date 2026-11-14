@@ -5,5 +5,5 @@ import jakarta.persistence.*; import java.math.BigDecimal; import java.time.Loca
  @ManyToOne(optional=false) public User customer; @ManyToOne(optional=false) public Bike bike;
  @Column(nullable=false) public LocalDateTime pickupAt; @Column(nullable=false) public LocalDateTime returnAt;
  public String pickupLocation; public String returnLocation; public String licenseNumber;
- @Column(nullable=false) public String status="PENDING"; @Column(nullable=false,precision=10,scale=2) public BigDecimal totalAmount=BigDecimal.ZERO; public LocalDateTime createdAt=LocalDateTime.now(); public Booking(){}
+ @Column(nullable=false) public String status="PENDING"; @Column(nullable=false,precision=10,scale=2) public BigDecimal totalAmount=BigDecimal.ZERO; public LocalDateTime createdAt=LocalDateTime.now(); @Transient public String paymentStatus; @Transient public String paymentReference; public Booking(){}
 }
