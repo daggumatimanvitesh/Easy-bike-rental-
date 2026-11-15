@@ -71,10 +71,14 @@ public class PaymentController {
  public Map<String,Object> completeDemoPayment(@Valid @RequestBody OrderRequest request){
   if(!demoPaymentsEnabled)throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Demo payments are disabled");
   Booking booking=ownedBooking(request.bookingId());
+  Payment payment=payments.findFirstByBooking_IdOrderByPaidAtDesc(booking.id).orElse(null);
+  if(payment!=null&&"TEST_PAID".equals(payment.status)){
+   if("CONFIRMED".equals(booking.status))return demoConfirmation(payment,booking);
+   if("PENDING".equals(booking.status)){booking.status="CONFIRMED";bookings.save(booking);return demoConfirmation(payment,booking);}
+   throw new ResponseStatusException(HttpStatus.CONFLICT,"This test payment is already recorded, but the booking is no longer active");
+  }
   if("CONFIRMED".equals(booking.status))throw new ResponseStatusException(HttpStatus.CONFLICT,"This booking is already confirmed");
   if(!"PENDING".equals(booking.status))throw new ResponseStatusException(HttpStatus.CONFLICT,"This booking is not eligible for a test payment");
-  Payment payment=payments.findFirstByBooking_IdOrderByPaidAtDesc(booking.id).orElse(null);
-  if(payment!=null&&"TEST_PAID".equals(payment.status)){booking.status="CONFIRMED";bookings.save(booking);return demoConfirmation(payment,booking);}
   if(payment!=null&&("CAPTURED".equals(payment.status)||payment.gatewayOrderId!=null))throw new ResponseStatusException(HttpStatus.CONFLICT,"A Razorpay payment has already been started for this booking. Finish or resolve that payment first");
   if(payment==null){payment=new Payment();payment.booking=booking;}
   payment.amount=booking.totalAmount;payment.currency="INR";payment.method="DEMO";payment.status="TEST_PAID";

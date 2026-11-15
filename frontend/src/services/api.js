@@ -17,9 +17,25 @@ api.interceptors.response.use(response => response, error => {
   const url = error.config?.url || '';
   const protectedBookingRequest = /^\/(bookings|payments\/(orders|verify|demo))(\/|\?|$)/.test(url);
   if (status === 401 && protectedBookingRequest) {
-    localStorage.removeItem('ebr_token');
-    localStorage.removeItem('ebr_user');
-    window.dispatchEvent(new Event('ebr:session-expired'));
+    const config = error.config;
+    const currentToken = localStorage.getItem('ebr_token');
+    if (currentToken && config && !config.__ebrAuthRetried) {
+      config.__ebrAuthRetried = true;
+      if (typeof config.headers?.set === 'function') config.headers.set('Authorization', `Bearer ${currentToken}`);
+      else config.headers = { ...config.headers, Authorization: `Bearer ${currentToken}` };
+      return api.request(config);
+    }
+    const authorization = typeof config?.headers?.get === 'function'
+      ? config.headers.get('Authorization')
+      : (config?.headers?.Authorization || config?.headers?.authorization);
+    const requestToken = typeof authorization === 'string' && authorization.startsWith('Bearer ')
+      ? authorization.slice(7)
+      : null;
+    if (!currentToken || requestToken === currentToken) {
+      localStorage.removeItem('ebr_token');
+      localStorage.removeItem('ebr_user');
+      window.dispatchEvent(new Event('ebr:session-expired'));
+    }
   }
   return Promise.reject(error);
 });
