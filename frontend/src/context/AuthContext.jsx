@@ -48,8 +48,26 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const expireSession = () => setUser(null);
+    const syncTabSession = event => {
+      if (event.key === 'ebr_token' && event.newValue) {
+        sessionStorage.setItem('ebr_token', event.newValue);
+        const sharedUser = localStorage.getItem('ebr_user');
+        if (sharedUser) {
+          sessionStorage.setItem('ebr_user', sharedUser);
+          try { setUser(JSON.parse(sharedUser)); } catch { setUser(null); }
+        }
+      } else if (event.key === 'ebr_user' && event.newValue && sessionStorage.getItem('ebr_token')) {
+        sessionStorage.setItem('ebr_user', event.newValue);
+        try { setUser(JSON.parse(event.newValue)); } catch { setUser(null); }
+      }
+      // Ignore removals from other tabs; they must not invalidate this tab's token.
+    };
     window.addEventListener('ebr:session-expired', expireSession);
-    return () => window.removeEventListener('ebr:session-expired', expireSession);
+    window.addEventListener('storage', syncTabSession);
+    return () => {
+      window.removeEventListener('ebr:session-expired', expireSession);
+      window.removeEventListener('storage', syncTabSession);
+    };
   }, []);
 
   async function login(email, password) {

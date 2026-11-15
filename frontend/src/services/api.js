@@ -14,7 +14,11 @@ const getSessionToken = () => {
 };
 api.interceptors.request.use(config => {
   const token = getSessionToken();
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  if (token) {
+    const authorization = `Bearer ${token}`;
+    if (typeof config.headers?.set === 'function') config.headers.set('Authorization', authorization);
+    else config.headers = { ...config.headers, Authorization: authorization };
+  }
   return config;
 });
 export const getBikes = () => api.get('/bikes');
