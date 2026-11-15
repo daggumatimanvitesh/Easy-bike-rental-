@@ -121,6 +121,8 @@ The API requires a future pickup time and a return time after pickup. It takes a
 
 Without API keys, the rest of the site remains available and payment attempts return a clear configuration error.
 
+For a public Railway deployment, see [DEPLOYMENT.md](DEPLOYMENT.md). It covers the frontend, Spring Boot API, MySQL variables, HTTPS domains, and Razorpay Live Mode setup.
+
 ## Local verification and known limits
 
 The frontend production build completes successfully. The local frontend and backend have also been verified together: bike listings and bike detail records load from the seeded MySQL data. Automated tests have not been added or run.
