@@ -14,6 +14,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -33,6 +34,7 @@ public class PaymentController {
  private final RazorpayService razorpay;
  private final RazorpayWebhookEventRepository webhookEvents;
  private final ObjectMapper objectMapper;
+ @Value("${app.payments.demo-enabled:false}") private boolean demoPaymentsEnabled;
 
  public PaymentController(PaymentRepository payments,BookingRepository bookings,RazorpayService razorpay,RazorpayWebhookEventRepository webhookEvents,ObjectMapper objectMapper){this.payments=payments;this.bookings=bookings;this.razorpay=razorpay;this.webhookEvents=webhookEvents;this.objectMapper=objectMapper;}
 
@@ -47,6 +49,7 @@ public class PaymentController {
   if(!List.of("PENDING","CONFIRMED").contains(booking.status))throw new ResponseStatusException(HttpStatus.CONFLICT,"This booking is not eligible for payment");
   Payment payment=payments.findFirstByBooking_IdOrderByPaidAtDesc(booking.id).orElse(null);
   if(payment!=null&&"CAPTURED".equals(payment.status))throw new ResponseStatusException(HttpStatus.CONFLICT,"This booking has already been paid");
+  if(payment!=null&&"TEST_PAID".equals(payment.status))throw new ResponseStatusException(HttpStatus.CONFLICT,"This booking has already been completed with a test payment");
   if(payment!=null&&payment.gatewayOrderId!=null)return orderResponse(payment);
 
   if(payment==null){payment=new Payment();payment.booking=booking;payment.amount=booking.totalAmount;payment.currency="INR";payment.method="RAZORPAY";payment.status="CREATED";payment=payments.saveAndFlush(payment);}
@@ -61,6 +64,24 @@ public class PaymentController {
    payments.save(payment);
    return orderResponse(payment);
   }catch(RestClientException|IllegalStateException ex){throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,"Razorpay could not create a payment order. Check the server credentials and Razorpay account status.",ex);}
+ }
+
+ @PostMapping("/demo")
+ @Transactional
+ public Map<String,Object> completeDemoPayment(@Valid @RequestBody OrderRequest request){
+  if(!demoPaymentsEnabled)throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Demo payments are disabled");
+  Booking booking=ownedBooking(request.bookingId());
+  if("CONFIRMED".equals(booking.status))throw new ResponseStatusException(HttpStatus.CONFLICT,"This booking is already confirmed");
+  if(!"PENDING".equals(booking.status))throw new ResponseStatusException(HttpStatus.CONFLICT,"This booking is not eligible for a test payment");
+  Payment payment=payments.findFirstByBooking_IdOrderByPaidAtDesc(booking.id).orElse(null);
+  if(payment!=null&&"TEST_PAID".equals(payment.status)){booking.status="CONFIRMED";bookings.save(booking);return demoConfirmation(payment,booking);}
+  if(payment!=null&&("CAPTURED".equals(payment.status)||payment.gatewayOrderId!=null))throw new ResponseStatusException(HttpStatus.CONFLICT,"A Razorpay payment has already been started for this booking. Finish or resolve that payment first");
+  if(payment==null){payment=new Payment();payment.booking=booking;}
+  payment.amount=booking.totalAmount;payment.currency="INR";payment.method="DEMO";payment.status="TEST_PAID";
+  payment.transactionReference="TEST-"+java.util.UUID.randomUUID().toString().substring(0,8).toUpperCase(Locale.ROOT);
+  payment.paidAt=java.time.LocalDateTime.now();payment=payments.save(payment);
+  booking.status="CONFIRMED";bookings.save(booking);
+  return demoConfirmation(payment,booking);
  }
 
  @PostMapping("/verify")
@@ -127,6 +148,7 @@ public class PaymentController {
  }
 
  private Map<String,Object> orderResponse(Payment payment){return Map.of("keyId",razorpay.keyId(),"orderId",payment.gatewayOrderId,"amount",toMinorUnits(payment),"currency",payment.currency,"bookingId",payment.booking.id);}
+ private Map<String,Object> demoConfirmation(Payment payment,Booking booking){return Map.of("message","Test payment completed. No money was charged.","paymentStatus",payment.status,"bookingStatus",booking.status,"transactionReference",payment.transactionReference,"amount",payment.amount,"method",payment.method);}
  private Map<String,Object> confirmation(Payment payment,Booking booking){return Map.of("message","Razorpay payment verified","paymentStatus",payment.status,"bookingStatus",booking.status,"transactionReference",payment.transactionReference,"amount",payment.amount,"method",payment.method);}
  private long toMinorUnits(Payment payment){return payment.amount.setScale(2,RoundingMode.UNNECESSARY).movePointRight(2).longValueExact();}
  private long number(Object value){if(value instanceof Number n)return n.longValue();throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Razorpay returned an invalid payment amount");}

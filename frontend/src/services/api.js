@@ -9,10 +9,11 @@ export const getBookings = () => api.get('/bookings');
 export const createBooking = data => api.post('/bookings', data);
 export const createRazorpayOrder = bookingId => api.post('/payments/orders', { bookingId });
 export const verifyRazorpayPayment = data => api.post('/payments/verify', data);
+export const simulateTestPayment = bookingId => api.post('/payments/demo', { bookingId });
 api.interceptors.response.use(response => response, error => {
   const status = error.response?.status;
   const url = error.config?.url || '';
-  const protectedBookingRequest = /^\/(bookings|payments\/(orders|verify))(\/|\?|$)/.test(url);
+  const protectedBookingRequest = /^\/(bookings|payments\/(orders|verify|demo))(\/|\?|$)/.test(url);
   if (status === 401 && protectedBookingRequest) {
     localStorage.removeItem('ebr_token');
     localStorage.removeItem('ebr_user');

@@ -2,15 +2,15 @@
 
 A full-stack academic bike rental demonstration built with React, Vite, Spring Boot, Spring Security, JWT, Spring Data JPA and MySQL. The app includes a responsive marketing site, bike fleet and detail pages, customer registration/login, booking requests with overlap protection, a customer booking dashboard, an admin booking/fleet view, Razorpay Standard Checkout, and persisted contact messages.
 
-> **Payments use Razorpay Standard Checkout.** Use test-mode keys while integrating. Switch to live-mode keys only after your Razorpay account is activated and the site is deployed over HTTPS.
+> **Payments are test-only.** Local development uses a simulated payment that confirms a booking without charging money. Razorpay Test Mode is optional; this project does not enable live charges.
 
 ## Features
 
 - Browse bikes from the REST API, search by name/brand, and filter by category.
 - Register customers with BCrypt password hashes; log in for a signed JWT.
-- Request future bookings; the API checks time overlap and serializes booking attempts per bike. A signature-verified, captured Razorpay payment confirms the booking.
+- Request future bookings; the API checks time overlap and serializes booking attempts per bike. A simulated test payment or captured Razorpay sandbox payment confirms the booking.
 - View customer bookings, cancel eligible bookings, and update booking status as an administrator.
-- Pay bookings through Razorpay Standard Checkout; the backend verifies the checkout signature and captured payment before confirming a booking.
+- Complete a clearly labelled no-charge test payment locally, or optionally use Razorpay Test Mode with backend verification.
 - Store contact form submissions in MySQL.
 
 ## Technology and architecture
@@ -101,6 +101,7 @@ Log in again to get a JWT carrying the new role. The project intentionally seeds
 | PATCH | `/api/bookings/{id}/status?value=CONFIRMED` | Admin | Change booking lifecycle status |
 | POST | `/api/payments/orders` | Booking owner | Create or resume a Razorpay order |
 | POST | `/api/payments/verify` | Booking owner | Verify the checkout signature and captured payment |
+| POST | `/api/payments/demo` | Booking owner, when demo payments are enabled | Confirm a no-charge simulated test payment |
 | POST | `/api/payments/webhook` | Razorpay | Verify and process `payment.captured` events |
 | GET | `/api/payments` | Admin | List payments |
 | POST | `/api/contact` | Public | Save contact message |
@@ -109,19 +110,15 @@ Send authenticated requests with `Authorization: Bearer <token>`.
 
 ## Booking and pricing behavior
 
-The API requires a future pickup time and a return time after pickup. It takes a row lock on the selected bike inside a transaction, checks pending/confirmed/picked-up booking windows for overlap, and rejects a conflict with HTTP 409. Price is rounded up to whole rental days using the daily rate; the security deposit is added to the estimate. New bookings start as `PENDING`; only a signature-verified, captured Razorpay payment moves an eligible booking to `CONFIRMED`. Booking owners cannot cancel captured payments in the app; refunds must first be processed in Razorpay. Availability is period-based and bikes are not globally disabled by a single booking.
+The API requires a future pickup time and a return time after pickup. It takes a row lock on the selected bike inside a transaction, checks pending/confirmed/picked-up booking windows for overlap, and rejects a conflict with HTTP 409. Price is rounded up to whole rental days using the daily rate; the security deposit is added to the estimate. New bookings start as `PENDING`; a simulated test payment or a signature-verified captured Razorpay payment moves an eligible booking to `CONFIRMED`. Simulated payments are marked `TEST_PAID` and do not charge money. Booking owners cannot cancel captured payments in the app; refunds must first be processed in Razorpay. Availability is period-based and bikes are not globally disabled by a single booking.
 
-## Razorpay setup
+## Test payments
 
-1. Activate your Razorpay account and create API keys in the Dashboard. Start with **Test Mode** keys.
-2. Set `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, and `RAZORPAY_WEBHOOK_SECRET` in the IntelliJ backend Run Configuration or backend server environment. Keep both secret values on the backend only; do not add them to frontend variables or Git.
-3. Enable automatic payment capture in Razorpay. The backend confirms bookings only after it verifies a captured payment with Razorpay.
-4. For webhook recovery, configure the public HTTPS endpoint `https://<your-domain>/api/payments/webhook` in Razorpay and subscribe to `payment.captured`. Use the separate webhook secret generated for that webhook. Razorpay cannot deliver webhooks to `localhost`.
-5. Test with Test Mode keys first. For live payments, deploy the frontend and backend to a public HTTPS domain and use Live Mode keys only after Razorpay activates your account and site. Restart the backend whenever credentials change.
+Local frontend development defaults to a clearly labelled simulated test payment. It confirms the booking with payment status `TEST_PAID`; no money is sent or charged. The backend's local default is `DEMO_PAYMENTS_ENABLED=true`.
 
-Without API keys, the rest of the site remains available and payment attempts return a clear configuration error.
+To exercise Razorpay's actual sandbox checkout instead, set `DEMO_PAYMENTS_ENABLED=false` on the backend and `VITE_DEMO_PAYMENTS=false` on the frontend, then configure **Test Mode only** values for `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, and `RAZORPAY_WEBHOOK_SECRET` in the backend environment. Keep the secret values server-side and out of Git. Never use Live Mode keys for this test setup.
 
-For a public Railway deployment, see [DEPLOYMENT.md](DEPLOYMENT.md). It covers the frontend, Spring Boot API, MySQL variables, HTTPS domains, and Razorpay Live Mode setup.
+For a public test deployment on Railway, see [DEPLOYMENT.md](DEPLOYMENT.md). It covers the frontend, Spring Boot API, MySQL, HTTPS domains, and the no-charge test payment configuration.
 
 ## Local verification and known limits
 

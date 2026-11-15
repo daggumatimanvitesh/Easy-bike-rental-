@@ -1,4 +1,4 @@
-# Public deployment and Razorpay live setup
+# Public deployment and test payments
 
 This repository is prepared for Railway with three services: a React frontend, a Spring Boot API, and MySQL. The app services build from their Dockerfiles; the frontend and API each receive a Railway HTTPS domain. The production profile requires `JWT_SECRET` and `CORS_ORIGIN` and binds the API to the container's public interface. The production API seeds the existing four-bike sample fleet only when the database contains no bikes.
 
@@ -11,7 +11,7 @@ This repository is prepared for Railway with three services: a React frontend, a
 5. Deploy the backend after setting its variables below. In the backend service's Networking settings, generate its public domain. Railway-provided domains are HTTPS-enabled.
 6. Set the frontend's `VITE_API_URL` to `https://<backend-domain>/api`, then deploy it and generate its public domain.
 7. Update the backend's `CORS_ORIGIN` to the exact frontend origin, such as `https://<frontend-domain>` (no trailing slash), and redeploy the backend.
-8. Open the frontend's HTTPS domain and confirm bike listings load before enabling live payments.
+8. Open the frontend's HTTPS domain and confirm bike listings and the no-charge test payment flow work.
 
 ## Backend environment variables
 
@@ -30,20 +30,21 @@ Set these in Railway's backend Variables tab. Reference the generated MySQL serv
 
 The app composes the JDBC URL from the `MYSQL*` variables. Do not make the MySQL service public.
 
-## Enable Razorpay Live Mode
+## Test payment modes
 
-Complete Razorpay's merchant activation and use the Dashboard's Live Mode to create the live API key pair. Enter the following values directly in Railway's backend Variables tab; do not commit them or send them in chat:
+The safe default for this deployment is the simulated test payment. Set these variables on the frontend and backend services:
 
 | Variable | Value |
 | --- | --- |
-| `RAZORPAY_KEY_ID` | Live API key ID |
-| `RAZORPAY_KEY_SECRET` | Live API key secret |
-| `RAZORPAY_WEBHOOK_SECRET` | A separate secret created for the webhook |
+| `DEMO_PAYMENTS_ENABLED` | `true` on the backend |
+| `VITE_DEMO_PAYMENTS` | `true` on the frontend before its build |
 
-Enable automatic capture in Razorpay. Add a webhook for `payment.captured` with URL `https://<backend-domain>/api/payments/webhook`, and use the matching webhook secret in Railway. Redeploy the backend after saving variables, then verify a test-mode payment flow before switching traffic to live keys. A successful browser callback alone is not treated as payment confirmation; the backend verifies the signature and captured payment with Razorpay.
+This mode confirms bookings as `TEST_PAID` and clearly reports that no money was charged. It does not call Razorpay. It is for demonstrations and testing only.
+
+To test Razorpay's sandbox checkout instead, set both demo variables to `false` and put only Razorpay **Test Mode** values for `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, and `RAZORPAY_WEBHOOK_SECRET` in the backend Variables tab. Never put the key secret or webhook secret in frontend variables or Git. With a public Railway backend domain, configure the sandbox webhook at `https://<backend-domain>/api/payments/webhook` for `payment.captured`. Do not add Live Mode keys to this test deployment.
 
 ## Billing and launch limits
 
 Railway currently lists a $5/month Hobby minimum usage commitment, with extra charges possible when resource usage exceeds the included credit. The free plan is limited and should not be treated as a guaranteed always-on production host. Review Railway's live pricing before creating or upgrading a project. [Railway pricing](https://railway.com/pricing)
 
-The sample bike fleet is demo inventory. Replace its names, prices, descriptions, and images with the actual fleet before accepting real bookings. A public live payment deployment also requires an activated Razorpay merchant account and the three live secrets above.
+The sample bike fleet is demo inventory. Replace its names, prices, descriptions, and images before accepting real bookings. This configuration is intentionally test-only and does not collect money.
