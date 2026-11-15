@@ -3,10 +3,6 @@ import { login as loginApi } from '../services/api';
 
 const Context = createContext(null);
 
-function getSessionValue(key) {
-  return sessionStorage.getItem(key) || localStorage.getItem(key);
-}
-
 function writeSession(token, user) {
   const serializedUser = JSON.stringify(user);
   // Keep the active tab's credentials independent from delayed requests in other tabs.
@@ -25,12 +21,22 @@ function clearSession() {
 }
 
 function readUser() {
-  if (!getSessionValue('ebr_token')) {
+  let token = sessionStorage.getItem('ebr_token');
+  if (!token) {
+    token = localStorage.getItem('ebr_token');
+    if (token) {
+      // Migrate sessions created before tab-scoped storage was introduced.
+      sessionStorage.setItem('ebr_token', token);
+      const legacyUser = localStorage.getItem('ebr_user');
+      if (legacyUser) sessionStorage.setItem('ebr_user', legacyUser);
+    }
+  }
+  if (!token) {
     clearSession();
     return null;
   }
   try {
-    return JSON.parse(getSessionValue('ebr_user') || 'null');
+    return JSON.parse(sessionStorage.getItem('ebr_user') || localStorage.getItem('ebr_user') || 'null');
   } catch {
     clearSession();
     return null;

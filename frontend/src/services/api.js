@@ -1,8 +1,17 @@
 import axios from 'axios';
-const localApiTarget = (import.meta.env.VITE_API_TARGET || 'http://127.0.0.1:8081').replace(/\/$/, '');
-const apiBaseUrl = import.meta.env.DEV ? `${localApiTarget}/api` : (import.meta.env.VITE_API_URL || '/api');
+const apiBaseUrl = import.meta.env.DEV ? '/api' : (import.meta.env.VITE_API_URL || '/api');
 const api = axios.create({ baseURL: apiBaseUrl });
-const getSessionToken = () => sessionStorage.getItem('ebr_token') || localStorage.getItem('ebr_token');
+const getSessionToken = () => {
+  const tabToken = sessionStorage.getItem('ebr_token');
+  if (tabToken) return tabToken;
+  const legacyToken = localStorage.getItem('ebr_token');
+  if (legacyToken) {
+    sessionStorage.setItem('ebr_token', legacyToken);
+    const legacyUser = localStorage.getItem('ebr_user');
+    if (legacyUser) sessionStorage.setItem('ebr_user', legacyUser);
+  }
+  return legacyToken;
+};
 api.interceptors.request.use(config => {
   const token = getSessionToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
