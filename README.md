@@ -72,7 +72,7 @@ npm --prefix frontend install
 npm --prefix frontend run dev
 ```
 
-Open `http://127.0.0.1:5174`. The Vite server proxies `/api` to the backend, so frontend requests stay same-origin and do not depend on browser CORS rules. The default proxy target is `http://127.0.0.1:8080`; if the backend uses another port, set `VITE_API_TARGET` in `frontend/.env.local` (for example, `http://127.0.0.1:8081`). Keep `VITE_API_URL=/api`.
+Open `http://127.0.0.1:5174`. The Vite server proxies `/api` to the IntelliJ backend on `http://127.0.0.1:8081`, so frontend requests stay same-origin and use the same backend for login, bookings, and test payments. If the backend uses another port, set `VITE_API_TARGET` in `frontend/.env.local`. Keep `VITE_API_URL=/api`.
 
 ## Accounts
 
