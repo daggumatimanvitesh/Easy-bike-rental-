@@ -1,5 +1,7 @@
 import axios from 'axios';
-const api = axios.create({ baseURL: import.meta.env.VITE_API_URL || '/api' });
+const localApiTarget = (import.meta.env.VITE_API_TARGET || 'http://127.0.0.1:8081').replace(/\/$/, '');
+const apiBaseUrl = import.meta.env.DEV ? `${localApiTarget}/api` : (import.meta.env.VITE_API_URL || '/api');
+const api = axios.create({ baseURL: apiBaseUrl });
 api.interceptors.request.use(config => { const token = localStorage.getItem('ebr_token'); if (token) config.headers.Authorization = `Bearer ${token}`; return config; });
 export const getBikes = () => api.get('/bikes');
 export const getBike = id => api.get(`/bikes/${id}`);
