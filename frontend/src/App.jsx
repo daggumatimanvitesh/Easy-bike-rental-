@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ArrowRight, Bike as BikeIcon, CalendarDays, Check, Clock, MapPin, Menu, Search, ShieldCheck, Star, X } from 'lucide-react';
 import { createBooking, createRazorpayOrder, getBike, getBikes, simulateTestPayment, verifyRazorpayPayment } from './services/api';
@@ -36,14 +36,46 @@ function PaymentPanel({booking,onPaid}){
   if(booking.paymentStatus==='CAPTURED')return <div className="payment-receipt"><p className="success">Razorpay payment verified</p><small>Razorpay payment ID: {booking.paymentReference||'verified'}</small></div>;
   if(booking.paymentStatus==='TEST_PAID')return <div className="payment-receipt"><p className="success">Test payment completed</p><small>No money was charged. Test reference: {booking.paymentReference||'TEST'}</small></div>;
   return <form className="payment-panel" onSubmit={submit}><p className="eyebrow">{DEMO_PAYMENTS_ENABLED?'TEST PAYMENT':'RAZORPAY TEST CHECKOUT'}</p><h2>Amount due: ₹{booking.totalAmount}</h2><p className="muted">{DEMO_PAYMENTS_ENABLED?'This booking stays PENDING until you confirm with a simulated test payment. It then becomes CONFIRMED. No money will be charged.':'Continue to Razorpay Test Mode checkout. Use Razorpay test payment details; no real charge will be made.'}</p>{error&&<p className="error" role="alert">{error}</p>}<button className="button primary full" disabled={busy}>{busy?'Confirming booking…':DEMO_PAYMENTS_ENABLED?'Confirm booking (test payment)':'Pay with Razorpay Test Mode'} <ArrowRight/></button></form>
-}function Book(){
-  const {id}=useParams(),{user}=useAuth(),[bike,setBike]=useState(null),[booking,setBooking]=useState(null),[error,setError]=useState(''),[saving,setSaving]=useState(false),[loginRequired,setLoginRequired]=useState(false),[pickupAt,setPickupAt]=useState(''),[minimum,setMinimum]=useState(localDateTimeMin);
+}function readBookingDraft(id) {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(`ebr_booking_draft_${id}`) || 'null');
+    return saved?.bikeId === Number(id) ? saved : null;
+  } catch {
+    return null;
+  }
+}
+
+function Book(){
+  const {id}=useParams(),{user}=useAuth(),draftKey=`ebr_booking_draft_${id}`;
+  const [draft,setDraft]=useState(()=>readBookingDraft(id));
+  const [bike,setBike]=useState(null),[booking,setBooking]=useState(null),[error,setError]=useState(''),[saving,setSaving]=useState(false),[loginRequired,setLoginRequired]=useState(false),[pickupAt,setPickupAt]=useState(draft?.pickupAt||''),[minimum,setMinimum]=useState(localDateTimeMin);
+  const submitLock=useRef(false);
   useEffect(()=>{getBike(id).then(r=>setBike(r.data)).catch(()=>setBike(false))},[id]);
-  async function submit(e){e.preventDefault();if(!user){setError('Please log in before booking.');setLoginRequired(true);return}setSaving(true);setError('');setLoginRequired(false);const form=Object.fromEntries(new FormData(e.currentTarget));try{const {data}=await createBooking({...form,bikeId:Number(id)});setBooking(data)}catch(x){setLoginRequired(x.response?.status===401);setError(requestError(x,'Booking could not be created'))}finally{setSaving(false)}}
+  function saveDraft(values){
+    const next={...values,bikeId:Number(id)};
+    sessionStorage.setItem(draftKey,JSON.stringify(next));
+    setDraft(next);
+  }
+  function updateDraftField(field,value){
+    let current=draft;
+    try{current=JSON.parse(sessionStorage.getItem(draftKey)||'null')||draft}catch{}
+    saveDraft({...current,[field]:value});
+  }
+  async function submit(e){
+    e.preventDefault();
+    if(submitLock.current)return;
+    const form=Object.fromEntries(new FormData(e.currentTarget));
+    saveDraft(form);
+    if(!user){setError('Please log in before booking.');setLoginRequired(true);return}
+    submitLock.current=true;setSaving(true);setError('');setLoginRequired(false);
+    try{const {data}=await createBooking({...form,bikeId:Number(id)});sessionStorage.removeItem(draftKey);setBooking(data)}
+    catch(x){setLoginRequired(x.response?.status===401);setError(requestError(x,'Booking could not be created'))}
+    finally{submitLock.current=false;setSaving(false)}
+  }
   function applyPayment(result){setBooking(current=>({...current,status:result.bookingStatus,paymentStatus:result.paymentStatus,paymentReference:result.transactionReference}))}
   if(!bike)return <><main className="page"><p>{bike===false?'Bike not found or API unavailable.':'Loading bike…'}</p></main><Footer/></>;
   if(booking)return <><main className="page booking"><p className="eyebrow">BOOKING {booking.bookingCode}</p><h1>{booking.status==='CONFIRMED'?'Your booking is confirmed.':'Your booking request is ready.'}</h1><p className="muted">{booking.status==='CONFIRMED'?(booking.paymentStatus==='TEST_PAID'?'Test payment recorded. No money was charged.':'Payment is complete. Your ride is reserved.'):(DEMO_PAYMENTS_ENABLED?'Complete the test payment below to confirm your ride.':'Complete Razorpay Test Mode checkout below to confirm your ride.')}</p><div className="booking-layout"><section className="checkout-card"><p>Bike <b>{bike.name}</b></p><p>Pickup <b>{new Date(booking.pickupAt).toLocaleString()}</b></p><p>Return <b>{new Date(booking.returnAt).toLocaleString()}</b></p><p>Booking status <b>{booking.status}</b></p><hr/><PaymentPanel booking={booking} onPaid={applyPayment}/><Link className="arrow-link" to="/dashboard">View your bookings <ArrowRight/></Link></section><aside className="summary"><img src={bike.imageUrl||'/bike-placeholder.svg'} alt=""/><p className="eyebrow">YOUR BIKE</p><h2>{bike.name}</h2><p>Total due <b>₹{booking.totalAmount}</b></p><small>The total includes the estimated rental and security deposit.</small></aside></div></main><Footer/></>;
-  return <><main className="page booking"><p className="eyebrow">MAKE IT A RIDE</p><h1>Book your bike.</h1><div className="booking-layout"><form className="auth-card" onSubmit={submit}><h2>Your ride details</h2><label>Pickup date and time<input name="pickupAt" type="datetime-local" min={minimum} required onChange={e=>{setPickupAt(e.target.value);setMinimum(localDateTimeMin())}}/></label><label>Return date and time<input name="returnAt" type="datetime-local" min={pickupAt?localDateTimeValue(new Date(new Date(pickupAt).getTime()+60000)):minimum} required/></label><label>Pickup location<input name="pickupLocation" defaultValue="Bengaluru Central" required/></label><label>Return location<input name="returnLocation" defaultValue="Bengaluru Central" required/></label><label>Driving license number<input name="licenseNumber" required/></label><section className="booking-acceptance" aria-labelledby="booking-acceptance-title"><h3 id="booking-acceptance-title">Confirm Booking</h3><p>Check your ride details before continuing. Your booking will be created as pending and confirmed after checkout.</p><label><input type="checkbox" required/> I confirm these details and agree to proceed to the test payment checkout. No real money will be charged.</label></section>{error&&<p className="error" role="alert">{error}</p>}{loginRequired&&<Link className="arrow-link" to="/login" state={{from:{pathname:`/book/${id}`}}}>Log in again to continue <ArrowRight/></Link>}<button className="button primary full" disabled={saving}>{saving?'Creating booking…':'Continue to payment'} <ArrowRight/></button></form><aside className="summary"><img src={bike.imageUrl||'/bike-placeholder.svg'} alt=""/><p className="eyebrow">YOUR BIKE</p><h2>{bike.name}</h2><p>₹{bike.pricePerDay} / day</p><hr/><p>Security deposit <b>₹{bike.securityDeposit}</b></p><small>Final total is calculated by the backend when you submit the booking.</small></aside></div></main><Footer/></>
+  return <><main className="page booking"><p className="eyebrow">MAKE IT A RIDE</p><h1>Book your bike.</h1><div className="booking-layout"><form className="auth-card" onSubmit={submit}><h2>Your ride details</h2><label>Pickup date and time<input name="pickupAt" type="datetime-local" min={minimum} defaultValue={draft?.pickupAt||''} required onChange={e=>{setPickupAt(e.target.value);setMinimum(localDateTimeMin());updateDraftField('pickupAt',e.target.value)}}/></label><label>Return date and time<input name="returnAt" type="datetime-local" min={pickupAt?localDateTimeValue(new Date(new Date(pickupAt).getTime()+60000)):minimum} defaultValue={draft?.returnAt||''} required onChange={e=>updateDraftField('returnAt',e.target.value)}/></label><label>Pickup location<input name="pickupLocation" defaultValue={draft?.pickupLocation||'Bengaluru Central'} required onChange={e=>updateDraftField('pickupLocation',e.target.value)}/></label><label>Return location<input name="returnLocation" defaultValue={draft?.returnLocation||'Bengaluru Central'} required onChange={e=>updateDraftField('returnLocation',e.target.value)}/></label><label>Driving license number<input name="licenseNumber" defaultValue={draft?.licenseNumber||''} required onChange={e=>updateDraftField('licenseNumber',e.target.value)}/></label><section className="booking-acceptance" aria-labelledby="booking-acceptance-title"><h3 id="booking-acceptance-title">Confirm Booking</h3><p>Check your ride details before continuing. Your booking will be created as pending and confirmed after checkout.</p><label><input type="checkbox" required/> I confirm these details and agree to proceed to the test payment checkout. No real money will be charged.</label></section>{error&&<p className="error" role="alert">{error}</p>}{loginRequired&&<Link className="arrow-link" to="/login" state={{from:{pathname:`/book/${id}`}}}>Log in again to continue <ArrowRight/></Link>}<button className="button primary full" disabled={saving}>{saving?'Creating booking…':'Continue to payment'} <ArrowRight/></button></form><aside className="summary"><img src={bike.imageUrl||'/bike-placeholder.svg'} alt=""/><p className="eyebrow">YOUR BIKE</p><h2>{bike.name}</h2><p>₹{bike.pricePerDay} / day</p><hr/><p>Security deposit <b>₹{bike.securityDeposit}</b></p><small>Final total is calculated by the backend when you submit the booking.</small></aside></div></main><Footer/></>
 }
 function Dashboard(){
   const {user}=useAuth(),[items,setItems]=useState([]);
