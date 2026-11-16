@@ -1,0 +1,4 @@
+com\easybikerentals\controller\BookingAuthFlowTest$BookingRequest.class
+com\easybikerentals\controller\AuthPublicEndpointTest.class
+com\easybikerentals\service\EmailVerificationServiceTest.class
+com\easybikerentals\controller\BookingAuthFlowTest.class
