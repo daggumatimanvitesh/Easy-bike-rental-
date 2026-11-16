@@ -74,6 +74,11 @@ public class SecurityConfig {
                             + ". Reload this site and log in again.\"}");
                 }))
                 .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers(
+                                "/api/auth/register",
+                                "/api/auth/login",
+                                "/api/auth/verify-email",
+                                "/api/auth/resend-verification").permitAll()
                         .requestMatchers("/api/auth/**", "/api/bikes/**", "/api/contact", "/api/payments/webhook").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())

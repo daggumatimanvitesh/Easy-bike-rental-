@@ -25,6 +25,8 @@ export const getBikes = () => api.get('/bikes');
 export const getBike = id => api.get(`/bikes/${id}`);
 export const login = data => api.post('/auth/login', data);
 export const register = data => api.post('/auth/register', data);
+export const verifyEmail = token => api.post('/auth/verify-email', { token });
+export const resendVerification = email => api.post('/auth/resend-verification', { email });
 export const getBookings = () => api.get('/bookings');
 export const createBooking = data => api.post('/bookings', data);
 export const createRazorpayOrder = bookingId => api.post('/payments/orders', { bookingId });
@@ -50,7 +52,10 @@ api.interceptors.response.use(response => response, error => {
       return api.request(config);
     }
     const code = error.response?.data?.code;
-    const rejectedToken = ['TOKEN_REJECTED', 'TOKEN_USER_NOT_FOUND', 'USER_DISABLED'].includes(code);
+    // AUTH_REQUIRED means the backend saw a bearer header but could not build an
+    // authenticated SecurityContext. Reusing that same token forever leaves the
+    // customer stuck on the booking/payment screen, so expire this tab's session.
+    const rejectedToken = ['TOKEN_REJECTED', 'TOKEN_USER_NOT_FOUND', 'USER_DISABLED', 'EMAIL_NOT_VERIFIED', 'AUTH_REQUIRED'].includes(code);
     if (currentToken && requestToken === currentToken && rejectedToken) {
       sessionStorage.removeItem('ebr_token');
       sessionStorage.removeItem('ebr_user');

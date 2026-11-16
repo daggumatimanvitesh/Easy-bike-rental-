@@ -8,6 +8,7 @@ A full-stack academic bike rental demonstration built with React, Vite, Spring B
 
 - Browse bikes from the REST API, search by name/brand, and filter by category.
 - Register customers with BCrypt password hashes; log in for a signed JWT.
+- Create customer accounts only after the registered address is confirmed through a 15-minute, single-use email verification link. SMTP settings are read from backend environment variables.
 - Request future bookings; the API checks time overlap and serializes booking attempts per bike. A simulated test payment or captured Razorpay sandbox payment confirms the booking.
 - View customer bookings, cancel eligible bookings, and update booking status as an administrator.
 - Complete a clearly labelled no-charge test payment locally, or optionally use Razorpay Test Mode with backend verification.
@@ -76,7 +77,9 @@ Open `http://127.0.0.1:5174`. The Vite server proxies `/api` to the IntelliJ bac
 
 ## Accounts
 
-Register a customer at `/register`. To promote a local account to administrator, use a trusted MySQL connection:
+Register a customer at `/register`, then open the verification link delivered to that address. The account row is created only after verification. Configure `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM`, and `FRONTEND_BASE_URL` in the backend run environment before requesting registration emails. Never put SMTP credentials in frontend variables or commit them. Resend requests are rate limited.
+
+To promote a verified local account to administrator, use a trusted MySQL connection:
 
 ```sql
 UPDATE users SET role='ADMIN' WHERE email='your@email';

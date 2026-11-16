@@ -27,6 +27,14 @@ Set these in Railway's backend Variables tab. Reference the generated MySQL serv
 | `MYSQLPASSWORD` | Reference `MYSQLPASSWORD` |
 | `JWT_SECRET` | A unique random secret with at least 32 bytes; keep it in Railway only |
 | `CORS_ORIGIN` | The deployed frontend HTTPS origin |
+| `MAIL_HOST` | SMTP hostname from your transactional mail provider |
+| `MAIL_PORT` | SMTP TLS port, usually `587` |
+| `MAIL_USERNAME` | SMTP username, stored in Railway only |
+| `MAIL_PASSWORD` | SMTP credential/app password, stored in Railway only |
+| `MAIL_FROM` | Verified sender address permitted by your provider |
+| `MAIL_AUTH` | `true` for authenticated SMTP |
+| `MAIL_STARTTLS` | `true` when the provider supports STARTTLS on the selected port |
+| `FRONTEND_BASE_URL` | The deployed frontend HTTPS origin used in verification links |
 
 The app composes the JDBC URL from the `MYSQL*` variables. Do not make the MySQL service public.
 

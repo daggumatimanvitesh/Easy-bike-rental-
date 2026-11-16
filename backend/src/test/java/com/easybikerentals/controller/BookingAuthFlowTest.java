@@ -66,6 +66,7 @@ class BookingAuthFlowTest {
         customer.email = "rider@example.test";
         customer.role = "CUSTOMER";
         customer.active = true;
+        customer.emailVerified = true;
         when(jwtService.email("test-token")).thenReturn(customer.email);
         when(users.findByEmail(customer.email)).thenReturn(Optional.of(customer));
     }

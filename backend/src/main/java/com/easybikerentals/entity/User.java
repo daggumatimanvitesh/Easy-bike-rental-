@@ -9,5 +9,6 @@ public class User {
  public String phone; @Column(length=500) public String address;
  @Column(nullable=false) public String role="CUSTOMER";
  @Column(nullable=false) public boolean active=true; public Instant createdAt=Instant.now();
+ @Column(name="email_verified",nullable=false,columnDefinition="boolean default true") public boolean emailVerified=true;
  public User(){}
 }

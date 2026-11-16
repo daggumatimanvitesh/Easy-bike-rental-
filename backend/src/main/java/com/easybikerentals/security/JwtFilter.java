@@ -28,6 +28,19 @@ public class JwtFilter extends OncePerRequestFilter {
  }
 
  @Override
+ protected boolean shouldNotFilter(HttpServletRequest request) {
+  String path = request.getServletPath();
+  // Account creation, verification, login, and resend are public flows. Do not
+  // attach a missing-token failure to these requests or make them depend on a
+  // token left over from an earlier session.
+  return path.startsWith("/api/auth/")
+    || path.startsWith("/api/bikes/")
+    || path.equals("/api/bikes")
+    || path.equals("/api/contact")
+    || path.equals("/api/payments/webhook");
+ }
+
+ @Override
  protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
    throws ServletException, IOException {
   // Do not allow authentication from a previous request to leak into this one.
@@ -48,6 +61,9 @@ public class JwtFilter extends OncePerRequestFilter {
     } else if (!user.active) {
      request.setAttribute("authFailure", "USER_DISABLED");
      log.warn("Rejected {} {} because the account is disabled", request.getMethod(), request.getRequestURI());
+    } else if (!user.emailVerified) {
+     request.setAttribute("authFailure", "EMAIL_NOT_VERIFIED");
+     log.warn("Rejected {} {} because the email address is not verified", request.getMethod(), request.getRequestURI());
     } else {
      SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
        email, null, List.of(new SimpleGrantedAuthority("ROLE_" + user.role))));
